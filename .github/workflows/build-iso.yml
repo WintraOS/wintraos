@@ -1,0 +1,37 @@
+name: Sestavit wintraOS ISO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stahnout repozitar
+        uses: actions/checkout@v4
+
+      - name: Rozbalit soubory wintraOS
+        run: unzip -o wintraos-src.zip
+
+      - name: Uvolnit misto na disku runneru
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h
+
+      - name: Sestavit wintraOS ISO v Arch Linux kontejneru
+        run: |
+          sed -i 's/\r$//' scripts/build-in-container.sh \
+            archiso/airootfs/usr/local/bin/wintraos-setup \
+            archiso/airootfs/usr/local/bin/wintraos-firstrun
+          chmod +x scripts/build-in-container.sh
+          docker run --rm --privileged \
+            -v "${{ github.workspace }}:/build" \
+            archlinux:latest \
+            /bin/bash /build/scripts/build-in-container.sh
+
+      - name: Nahrat hotove ISO ke stazeni
+        uses: actions/upload-artifact@v4
+        with:
+          name: wintraos-iso
+          path: out/*.iso
+          retention-days: 14
